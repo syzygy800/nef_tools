@@ -1,6 +1,7 @@
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 import re
 import os
+import sys
 
 
 ##
@@ -295,8 +296,14 @@ def avgd(bot, update):
 #
 #######################################
 # Add your Telegram bot token here
-updater = Updater('XXXXXXXXX:XXXXXXXXXXXXXXXX-XXXXXXXXXXXXXXXXXX')
+tg_token = 'XXXXXXXXX:XXXXXXXXXXXXXXXX-XXXXXXXXXXXXXXXXXX'
 
+# TG token can be set via the command line
+if ( len(sys.argv) > 1):
+    tg_token = str( sys.argv[1])
+
+
+updater = Updater( tg_token)
 updater.dispatcher.add_handler(CommandHandler('start',      start))
 updater.dispatcher.add_handler(CommandHandler('hello',      hello))
 updater.dispatcher.add_handler(CommandHandler('help',       help))
