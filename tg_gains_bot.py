@@ -9,6 +9,10 @@ import os
 output = ''
 item = False
 
+m_symbol = ""
+m_priceB = 0.0
+m_priceS = 0.0
+m_qty = 0.0
 
 
 #######################################
@@ -74,114 +78,90 @@ def trunc2( val):
 
 
 ########################################
+# Sub:
+#
+#   Overwrites global variables
+########################################
+def extractFromLine( line):
+    global m_symbol
+    global m_priceB
+    global m_priceS
+    global m_qty
+
+    mult = 1-0.03
+    pattern_non = 'symbol":"([A-Z]+)".*price":"([0-9.]+)",.*executedQty":"([0-9.]+)"'
+    pattern_old = 'symbol":"([A-Z]+)".*price":"([0-9.]+)",.*executedQty":"([0-9.]+)".*at: ([0-9.]+)'
+    pattern_168 = 'symbol":"([A-Z]+)".*J6MCRYME\-([0-9_]+)\-.*price":"([0-9.]+)",.*executedQty":"([0-9.]+)"'
+
+    # What info is in the line?
+    match_old = re.search( pattern_old, line)
+    match_168 = re.search( pattern_168, line)
+    match_non = re.search( pattern_non, line)
+
+    # Line contains "bought at:"
+    if ( match_old is not None):
+        m = match_old
+        m_symbol = m.group(1)
+        m_priceS = float(m.group(2)) 
+        m_qty = float(m.group(3))
+        m_priceB = float(m.group(4))
+
+    # Line contains "-PRICE-" in clientOrderid
+    elif match_168 is not None:
+        m = match_168
+        m_symbol = m.group(1)
+        m_priceB = float(m.group(2).replace("_", "."))
+        m_priceS = float(m.group(3)) 
+        m_qty = float(m.group(4))
+
+    # Line contains no info, using fixed value!
+    elif match_non is not None:
+        m = match_non
+        m_symbol = m.group(1)
+        m_priceS = float(m.group(2)) 
+        m_qty = float(m.group(3))
+        m_priceB = m_priceS * mult
+    else:
+        print( "Failure")
+
+
+
+########################################
 # Sub: Create gains string for on file
-#   Uses a fixed percentage (aka --mult)
 ########################################
 def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR"):
-    pattern_old = 'symbol":"([A-Z]+)".*price":"([0-9.]+)",.*executedQty":"([0-9.]+)".*at: ([0-9.]+)'
-    pattern = 'symbol":"([A-Z]+)".*price":"([0-9.]+)",.*executedQty":"([0-9.]+)"'
-    m_symbol = ""
-    m_priceS = 0.0
-    m_qty = 0.0
+    global m_symbol
+    global m_priceB
+    global m_priceS
+    global m_qty
+
     total = 0.0
     lines = []
     msg = ""
     mult = 0.03
 
-    with open( fname) as f:
-        lines = f.readlines()
-    
-    for l in lines:
-        out = ""
-
-        if ( "bought at" not in l):
-
-            m = re.search( pattern, l)
-            m_symbol = m.group(1)
-
-            # Only sum wanted quotes
-            quoteLen = len(onlyQuotes)
-            if ( m_symbol[-quoteLen:] != onlyQuotes):
-                continue
-    
-            m_priceS = float(m.group(2)) 
-            m_qty = float(m.group(3))
-            tots = m_priceS*m_qty
-            g = tots * mult
-            total += g
-        else:
-            m = re.search( pattern_old, l)
-
-            m_symbol = m.group(1)
-
-            # Only sum wanted quotes
-            quoteLen = len(onlyQuotes)
-            if ( m_symbol[-quoteLen:] != onlyQuotes):
-                continue
-    
-            m_priceS = float(m.group(2)) 
-            m_qty = float(m.group(3))
-            m_priceB = float(m.group(4))
-            tots = m_priceS*m_qty
-            totb = m_priceB*m_qty
-            g = (tots-totb)
-            print g
-            total += g
-
-
-
-        out = l[11:16] + " " + m_symbol + ": <b>" + str( trunc2( g))
-
-        if ( detailed):
-            msg += out + "</b>\n"
-    
-    # output
-    if ( detailed):
-        msg += "<b>Total: " + str(trunc2(total)) + " " + onlyQuotes + "</b>"
-    else:
-        msg += "<b> " + str(trunc2(total)) + " " + onlyQuotes + "</b>"
-    
-
-    return msg
- 
-
-
-########################################
-# Sub: Create gains string for on file
-#   Uses the metadata info from older logfiles
-########################################
-def getGainsFromFile_old( fname, detailed=True, onlyQuotes="EUR"):
-    pattern = 'symbol":"([A-Z]+)".*price":"([0-9.]+)",.*executedQty":"([0-9.]+)".*at: ([0-9.]+)'
-    m_symbol = ""
-    m_priceB = 0.0
-    m_priceS = 0.0
-    m_qty = 0.0
-    total = 0.0
-    lines = []
-    msg = ""
 
     with open( fname) as f:
         lines = f.readlines()
     
     for l in lines:
         out = ""
-        m = re.search( pattern, l)
 
-        m_symbol = m.group(1)
+        # Set global variables, depending on line style
+        extractFromLine( l)
 
         # Only sum wanted quotes
         quoteLen = len(onlyQuotes)
         if ( m_symbol[-quoteLen:] != onlyQuotes):
             continue
     
-        m_priceS = float(m.group(2)) 
-        m_qty = float(m.group(3))
-        m_priceB = float(m.group(4))
+        # Calc gains and total sum
         tots = m_priceS*m_qty
         totb = m_priceB*m_qty
         g = (tots-totb)
         total += g
 
+        # Create output string
         out = l[11:16] + " " + m_symbol + ": <b>" + str( trunc2( g))
 
         if ( detailed):
@@ -195,7 +175,8 @@ def getGainsFromFile_old( fname, detailed=True, onlyQuotes="EUR"):
     
 
     return msg
-    
+
+ 
 
 ########################################
 # Main: Called by handler "gains"
@@ -305,20 +286,6 @@ def avgd(bot, update):
 
     # Print shortcuts
     shorts( bot, update)
-
-
-
-#######################################
-#
-#
-#
-#######################################
-def clear_globals():
-    global output
-    global done
-
-    done = False
-    output = ''
 
 
 
