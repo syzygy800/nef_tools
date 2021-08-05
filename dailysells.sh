@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 tmp_file=/tmp/_tmp_$(date +%Y-%m-%d).log
 
 
@@ -12,5 +12,5 @@ grep "$(date +%Y/%m/%d).*\[FILLED\].*SELL" ~/crypto/sell_binance_btc.log >> $tmp
 grep "$(date +%Y/%m/%d).*\[FILLED\].*SELL" ~/crypto/sell_gdax.log >> $tmp_file
 
 # Remove identical orders
-sh /home/dp/crypto/clean_sells.sh $tmp_file | sort > ~/crypto/sells/$(date +%Y-%m-%d).log
+bash ~/crypto/clean_sells.sh $tmp_file | sort > ~/crypto/sells/$(date +%Y-%m-%d).log
 rm $tmp_file
