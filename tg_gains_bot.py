@@ -2,6 +2,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 import re
 import os
 import sys
+import base64
 
 
 ##
@@ -81,6 +82,29 @@ def trunc2( val):
 ########################################
 # Sub:
 #
+#   Extracts old JSON metadata from clientOrderId
+########################################
+def extractMetadata( clientOrderId):
+    global m_priceB
+    pattern = '.*"p":([0-9\.]+),.*"m":([0-9\.]+)}'
+
+    # Cut off two leading digits
+    data = clientOrderId[2:]
+
+    # Maximum padding. Excess chars are ignored. No "len % 4" needed.
+    data = data + "===="
+    json = base64.b64decode(data)
+
+    # Extract metadata if found.
+    match = re.match(pattern, json)
+    if ( match is not None):
+        m_priceB = float(match.group(1))
+
+
+
+########################################
+# Sub:
+#
 #   Overwrites global variables
 ########################################
 def extractFromLine( line):
@@ -93,6 +117,7 @@ def extractFromLine( line):
     pattern_non = 'symbol":"([A-Z]+)".*price":"([0-9.]+)",.*executedQty":"([0-9.]+)"'
     pattern_old = 'symbol":"([A-Z]+)".*price":"([0-9.]+)",.*executedQty":"([0-9.]+)".*at: ([0-9.]+)'
     pattern_168 = 'symbol":"([A-Z]+)".*J6MCRYME\-([0-9_]+)\-.*price":"([0-9.]+)",.*executedQty":"([0-9.]+)"'
+    pattern_cid = '.*"clientOrderId":"([a-zA-Z0-9=]+)"'
 
     # What info is in the line?
     match_old = re.search( pattern_old, line)
@@ -121,7 +146,14 @@ def extractFromLine( line):
         m_symbol = m.group(1)
         m_priceS = float(m.group(2)) 
         m_qty = float(m.group(3))
+
+        # preset value with fixed mulitplier
         m_priceB = m_priceS * mult
+
+        # overwrite price if found (old clientorderid)
+        match_cid = re.match( pattern_cid, line)
+        if ( match_cid is not None):
+            extractMetadata( match_cid.group(1))
     else:
         print( "Failure")
 
