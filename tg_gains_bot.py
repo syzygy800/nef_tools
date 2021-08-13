@@ -15,6 +15,7 @@ m_symbol = ""
 m_priceB = 0.0
 m_priceS = 0.0
 m_qty = 0.0
+g_earn = []
 
 
 #######################################
@@ -162,7 +163,7 @@ def extractFromLine( line):
 ########################################
 # Sub: Create gains string for on file
 ########################################
-def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR"):
+def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR", earn=[]):
     global m_symbol
     global m_priceB
     global m_priceS
@@ -182,6 +183,10 @@ def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR"):
 
         # Set global variables, depending on line style
         extractFromLine( l)
+
+        # Do not count symbols used in "--earn"
+        if m_symbol in earn:
+            continue
 
         # Only sum wanted quotes
         quoteLen = len(onlyQuotes)
@@ -228,12 +233,12 @@ def gains(bot, update):
     # Print latest 7 in list
     for fname in files[-7:]:
         msg = fname + ": "
-        msg += getGainsFromFile( fpath+fname, detailed=False, onlyQuotes="EUR")
+        msg += getGainsFromFile( fpath+fname, detailed=False, onlyQuotes="EUR", earn=g_earn)
         bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
 
     # Latest file (current day)
     msg = '<u>' + current + "</u>\n"
-    msg += getGainsFromFile( fpath+current, detailed=True, onlyQuotes="EUR")
+    msg += getGainsFromFile( fpath+current, detailed=True, onlyQuotes="EUR", earn=g_earn)
     bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
 
     # Print shortcuts
@@ -283,7 +288,7 @@ def gainsd(bot, update):
 
     # Latest file (current day)
     msg = '<u>' + current + "</u>\n"
-    msg += getGainsFromFile( fpath+current, detailed=True, onlyQuotes="EUR")
+    msg += getGainsFromFile( fpath+current, detailed=True, onlyQuotes="EUR", earn=g_earn)
     bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
 
     # Print shortcuts
@@ -334,6 +339,8 @@ tg_token = 'XXXXXXXXX:XXXXXXXXXXXXXXXX-XXXXXXXXXXXXXXXXXX'
 if ( len(sys.argv) > 1):
     tg_token = str( sys.argv[1])
 
+# Set global earn parameter here (TODO: from argv[])
+g_earn = ["BNBEUR"]
 
 updater = Updater( tg_token)
 updater.dispatcher.add_handler(CommandHandler('start',      start))
@@ -347,4 +354,4 @@ updater.dispatcher.add_handler(CommandHandler('avgd',       avgd))
 updater.start_polling()
 updater.idle()
 
-# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 nowrap
