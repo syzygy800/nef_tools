@@ -119,11 +119,13 @@ def extractFromLine( line):
     pattern_old = 'symbol":"([A-Z]+)".*price":"([0-9.]+)",.*executedQty":"([0-9.]+)".*at: ([0-9.]+)'
     pattern_168 = 'symbol":"([A-Z]+)".*J6MCRYME\-([0-9_]+)\-.*price":"([0-9.]+)",.*executedQty":"([0-9.]+)"'
     pattern_cid = '.*"clientOrderId":"([a-zA-Z0-9=]+)"'
+    pattern_market = 'symbol":"([A-Z]+)".*J6MCRYME\-([0-9_]+)\-.*executedQty":"([0-9.]+)".*cummulativeQuoteQty":"([0-9.]+)".*MARKET'
 
     # What info is in the line?
     match_old = re.search( pattern_old, line)
     match_168 = re.search( pattern_168, line)
     match_non = re.search( pattern_non, line)
+    match_market = re.search( pattern_market, line)
 
     # Line contains "bought at:"
     if ( match_old is not None):
@@ -132,6 +134,16 @@ def extractFromLine( line):
         m_priceS = float(m.group(2)) 
         m_qty = float(m.group(3))
         m_priceB = float(m.group(4))
+
+    # Line contains a MARKET order and "-PRICE-" in clientOrderid
+    elif match_market is not None:
+        m = match_market
+        m_symbol = m.group(1)
+        m_priceB = float(m.group(2).replace("_", "."))
+        execQty = float(m.group(3))
+        quoteQty = float(m.group(4))
+        m_priceS = quoteQty / execQty
+        m_qty = float(m.group(4))
 
     # Line contains "-PRICE-" in clientOrderid
     elif match_168 is not None:
@@ -279,7 +291,7 @@ def gainsUSDT(bot, update):
 def gainsd(bot, update):
     lines = []
     fpath = "/home/dp/crypto/sells/"
-    fname = "2021-03-05.log"
+    fname = "2021-08-17.log"
 
 
     files = os.listdir("/home/dp/crypto/sells")
