@@ -143,7 +143,7 @@ def extractFromLine( line):
         execQty = float(m.group(3))
         quoteQty = float(m.group(4))
         m_priceS = quoteQty / execQty
-        m_qty = float(m.group(4))
+        m_qty = execQty
 
     # Line contains "-PRICE-" in clientOrderid
     elif match_168 is not None:
