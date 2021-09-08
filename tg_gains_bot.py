@@ -389,7 +389,7 @@ def avgd(bot, update):
         total += float(entries[1])
         count += 1
 
-    msg = "Daily average: " + {:.2f}.format( total/count) + " EUR"
+    msg = "Daily average: {:.2f} EUR".format( total/count)
     bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
 
     # Print shortcuts
