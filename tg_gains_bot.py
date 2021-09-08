@@ -47,8 +47,9 @@ def hello(bot, update):
 #######################################
 def shorts(bot, update):
     update.message.reply_text(
-        '/gains /gainsUSDT /gainsd /avgd'
+        '/eur_today /eur_7d /usdt_today /usdt_7d /btc_today /btc_7d /avgd'
     )
+
 
 
 #######################################
@@ -64,12 +65,6 @@ def help(bot, update):
         '/avgd: show daily average\n'
 )
 
-
-#######################################
-#
-# Command: gains
-#
-#######################################
 
 
 ########################################
@@ -182,7 +177,7 @@ def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR", earn=[], trunc=2):
 
     with open( fname) as f:
         lines = f.readlines()
-    
+
     for l in lines:
         out = ""
 
@@ -199,7 +194,7 @@ def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR", earn=[], trunc=2):
         if ( m_symbol[-quoteLen:] != onlyQuotes):
             continue
 
-    
+
         # Calc gains and total sum
         tots = m_priceS*m_qty
         totb = m_priceB*m_qty
@@ -211,22 +206,22 @@ def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR", earn=[], trunc=2):
 
         if ( detailed):
             msg += out + "</b>\n"
-    
+
     # output
     if ( detailed):
         msg += "<b>Total: " + formstr.format( total) + " " + onlyQuotes + "</b>"
     else:
         msg += "<b> " + formstr.format( total) + " " + onlyQuotes + "</b>"
-    
+
 
     return msg
 
- 
+
 
 ########################################
-# Main: Called by handler "gains"
+# Command: "eur_7d"
 ########################################
-def gains(bot, update):
+def gainsEUR_7d(bot, update):
     lines = []
     fpath = "/home/dp/crypto/sells/"
     fname = "2021-03-05.log"
@@ -238,7 +233,7 @@ def gains(bot, update):
 
 
     # Print latest 7 in list
-    for fname in files[-7:]:
+    for fname in files[-6:]:
         msg = fname + ": "
         msg += getGainsFromFile( fpath+fname, detailed=False, onlyQuotes="EUR", earn=g_earn)
         bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
@@ -250,10 +245,34 @@ def gains(bot, update):
 
     # Print shortcuts
     shorts( bot, update)
-    
+
+
 
 ########################################
-# Command: "gainsUSDT"
+# Command: "eur_today"
+########################################
+def gainsEUR_d(bot, update):
+    lines = []
+    fpath = "/home/dp/crypto/sells/"
+    fname = "2021-08-17.log"
+
+
+    files = os.listdir("/home/dp/crypto/sells")
+    files.sort(reverse=False)
+    current = files.pop(-1)
+
+    # Latest file (current day)
+    msg = '<u>' + current + "</u>\n"
+    msg += getGainsFromFile( fpath+current, detailed=True, onlyQuotes="EUR", earn=g_earn)
+    bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
+
+    # Print shortcuts
+    shorts( bot, update)
+
+
+
+########################################
+# Command: "usdt_7d"
 ########################################
 def gainsUSDT(bot, update):
     lines = []
@@ -265,7 +284,7 @@ def gainsUSDT(bot, update):
     files.sort(reverse=False)
     current = files.pop(-1)
 
-    for fname in files[-10:]:
+    for fname in files[-6:]:
         msg = fname + ": "
         msg += getGainsFromFile( fpath+fname, detailed=False, onlyQuotes="USDT")
         bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
@@ -281,13 +300,11 @@ def gainsUSDT(bot, update):
 
 
 ########################################
-# Main: Called by handler "gainsd"
+# Command: "usdt_today"
 ########################################
-def gainsd(bot, update):
+def gainsUSDT_d(bot, update):
     lines = []
     fpath = "/home/dp/crypto/sells/"
-    fname = "2021-08-17.log"
-
 
     files = os.listdir("/home/dp/crypto/sells")
     files.sort(reverse=False)
@@ -295,7 +312,53 @@ def gainsd(bot, update):
 
     # Latest file (current day)
     msg = '<u>' + current + "</u>\n"
-    msg += getGainsFromFile( fpath+current, detailed=True, onlyQuotes="EUR", earn=g_earn)
+    msg += getGainsFromFile( fpath+current, detailed=True, onlyQuotes="USDT", earn=g_earn)
+    bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
+
+    # Print shortcuts
+    shorts( bot, update)
+
+
+
+########################################
+# Command: "btc_7d"
+########################################
+def gainsBTC_7d(bot, update):
+    lines = []
+    fpath = "/home/dp/crypto/sells/"
+
+
+    files = os.listdir("/home/dp/crypto/sells")
+    files.sort(reverse=False)
+    current = files.pop(-1)
+
+    for fname in files[-6:]:
+        msg = fname + ": "
+
+    # Latest file (current day)
+    msg = '<u>' + current + "</u>\n"
+    msg += getGainsFromFile( fpath+current, detailed=True, onlyQuotes="BTC", trunc=6)
+    bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
+
+    # Print shortcuts
+    shorts( bot, update)
+
+
+
+########################################
+# Command: "btc_today"
+########################################
+def gainsBTC_d(bot, update):
+    lines = []
+    fpath = "/home/dp/crypto/sells/"
+
+    files = os.listdir("/home/dp/crypto/sells")
+    files.sort(reverse=False)
+    current = files.pop(-1)
+
+    # Latest file (current day)
+    msg = '<u>' + current + "</u>\n"
+    msg += getGainsFromFile( fpath+current, detailed=True, onlyQuotes="BTC", earn=g_earn, trunc=6)
     bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
 
     # Print shortcuts
@@ -326,7 +389,7 @@ def avgd(bot, update):
         total += float(entries[1])
         count += 1
 
-    msg = "Daily average: " + str(trunc2(total/count)) + " EUR"
+    msg = "Daily average: " + {:.2f}.format( total/count) + " EUR"
     bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
 
     # Print shortcuts
@@ -353,9 +416,12 @@ updater = Updater( tg_token)
 updater.dispatcher.add_handler(CommandHandler('start',      start))
 updater.dispatcher.add_handler(CommandHandler('hello',      hello))
 updater.dispatcher.add_handler(CommandHandler('help',       help))
-updater.dispatcher.add_handler(CommandHandler('gains',      gains))
-updater.dispatcher.add_handler(CommandHandler('gainsUSDT',  gainsUSDT))
-updater.dispatcher.add_handler(CommandHandler('gainsd',     gainsd))
+updater.dispatcher.add_handler(CommandHandler('eur_today',  gainsEUR_d))
+updater.dispatcher.add_handler(CommandHandler('eur_7d',     gainsEUR_7d))
+updater.dispatcher.add_handler(CommandHandler('usdt_today', gainsUSDT_d))
+updater.dispatcher.add_handler(CommandHandler('usdt_7d',    gainsUSDT))
+updater.dispatcher.add_handler(CommandHandler('btc_today',  gainsBTC_d))
+updater.dispatcher.add_handler(CommandHandler('btc_7d',     gainsBTC_7d))
 updater.dispatcher.add_handler(CommandHandler('avgd',       avgd))
 
 updater.start_polling()
