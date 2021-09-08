@@ -73,14 +73,6 @@ def help(bot, update):
 
 
 ########################################
-# Sub: Truncate to 2 decimals
-########################################
-def trunc2( val):
-    return int(val*100) / 100.0
-    
-
-
-########################################
 # Sub:
 #
 #   Extracts old JSON metadata from clientOrderId
@@ -175,7 +167,7 @@ def extractFromLine( line):
 ########################################
 # Sub: Create gains string for on file
 ########################################
-def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR", earn=[]):
+def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR", earn=[], trunc=2):
     global m_symbol
     global m_priceB
     global m_priceS
@@ -185,6 +177,7 @@ def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR", earn=[]):
     lines = []
     msg = ""
     mult = 0.03
+    formstr = "{:." + str(trunc) + "f}"
 
 
     with open( fname) as f:
@@ -196,6 +189,7 @@ def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR", earn=[]):
         # Set global variables, depending on line style
         extractFromLine( l)
 
+
         # Do not count symbols used in "--earn"
         if m_symbol in earn:
             continue
@@ -204,6 +198,7 @@ def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR", earn=[]):
         quoteLen = len(onlyQuotes)
         if ( m_symbol[-quoteLen:] != onlyQuotes):
             continue
+
     
         # Calc gains and total sum
         tots = m_priceS*m_qty
@@ -212,16 +207,16 @@ def getGainsFromFile( fname, detailed=True, onlyQuotes="EUR", earn=[]):
         total += g
 
         # Create output string
-        out = l[11:16] + " " + m_symbol + ": <b>" + str( trunc2( g))
+        out = l[11:16] + " " + m_symbol + ": <b>" + formstr.format( g)
 
         if ( detailed):
             msg += out + "</b>\n"
     
     # output
     if ( detailed):
-        msg += "<b>Total: " + str(trunc2(total)) + " " + onlyQuotes + "</b>"
+        msg += "<b>Total: " + formstr.format( total) + " " + onlyQuotes + "</b>"
     else:
-        msg += "<b> " + str(trunc2(total)) + " " + onlyQuotes + "</b>"
+        msg += "<b> " + formstr.format( total) + " " + onlyQuotes + "</b>"
     
 
     return msg
