@@ -379,6 +379,8 @@ def avgd(bot, update):
     fname = ""
     count = 0
     total = 0
+    count_usdt = 0
+    total_usdt = 0
 
     files = os.listdir("/home/dp/crypto/sells")
     files.sort(reverse=False)
@@ -389,7 +391,14 @@ def avgd(bot, update):
         total += float(entries[1])
         count += 1
 
-    msg = "Daily average: {:.2f} EUR".format( total/count)
+        msg = getGainsFromFile( fpath+fname, detailed=False, onlyQuotes="USDT")
+        entries = msg.split(" ")
+        total_usdt += float(entries[1])
+        count_usdt += 1
+
+    msg = "<b>Daily averages:</b>\n"
+    msg += "{:.2f} EUR\n".format( total/count)
+    msg += "{:.2f} USDT\n".format( total_usdt/count_usdt)
     bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
 
     # Print shortcuts
