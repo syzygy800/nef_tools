@@ -4,6 +4,7 @@ import pycurl
 import io
 import os
 import re
+import base64
 
 
 #import requests
@@ -14,6 +15,11 @@ DATAFILE = "data/sells/2021-07-24.log"
 
 
 
+m_symbol = ""
+m_priceB = 0.0
+m_priceS = 0.0
+m_qty = 0.0
+g_earn = []
 
 
 
@@ -43,16 +49,107 @@ def calcTimestamp(d, t, extra):
 
 
 ########################################
+# Sub:
+#
+#   Extracts old JSON metadata from clientOrderId
+########################################
+def extractMetadata( clientOrderId):
+    global m_priceB
+    pattern = '.*"p":([0-9\.]+),.*"m":([0-9\.]+)}'
+
+    # Cut off two leading digits
+    data = clientOrderId[2:]
+
+    # Maximum padding. Excess chars are ignored. No "len % 4" needed.
+    data = data + "===="
+    json = base64.b64decode(data).decode("utf-8")
+
+    # Extract metadata if found.
+    match = re.match(pattern, json)
+    if ( match is not None):
+        m_priceB = float(match.group(1))
+
+
+
+########################################
+# Sub:
+#
+#   Overwrites global variables
+########################################
+def extractFromLine( line):
+    global m_symbol
+    global m_priceB
+    global m_priceS
+    global m_qty
+
+    mult = 1-0.03
+    pattern_non = 'symbol":"([A-Z]+)".*price":"([0-9.]+)",.*executedQty":"([0-9.]+)"'
+    pattern_old = 'symbol":"([A-Z]+)".*price":"([0-9.]+)",.*executedQty":"([0-9.]+)".*at: ([0-9.]+)'
+    pattern_168 = 'symbol":"([A-Z]+)".*J6MCRYME\-([0-9_]+)\-.*price":"([0-9.]+)",.*executedQty":"([0-9.]+)"'
+    pattern_cid = '.*"clientOrderId":"([a-zA-Z0-9=]+)"'
+    pattern_market = 'symbol":"([A-Z]+)".*J6MCRYME\-([0-9_]+)\-.*executedQty":"([0-9.]+)".*cummulativeQuoteQty":"([0-9.]+)".*MARKET'
+
+    # What info is in the line?
+    match_old = re.search( pattern_old, line)
+    match_168 = re.search( pattern_168, line)
+    match_non = re.search( pattern_non, line)
+    match_market = re.search( pattern_market, line)
+
+    # Line contains "bought at:"
+    if ( match_old is not None):
+        m = match_old
+        m_symbol = m.group(1)
+        m_priceS = float(m.group(2)) 
+        m_qty = float(m.group(3))
+        m_priceB = float(m.group(4))
+
+    # Line contains a MARKET order and "-PRICE-" in clientOrderid
+    elif match_market is not None:
+        m = match_market
+        m_symbol = m.group(1)
+        m_priceB = float(m.group(2).replace("_", "."))
+        execQty = float(m.group(3))
+        quoteQty = float(m.group(4))
+        m_priceS = quoteQty / execQty
+        m_qty = execQty
+
+    # Line contains "-PRICE-" in clientOrderid
+    elif match_168 is not None:
+        m = match_168
+        m_symbol = m.group(1)
+        m_priceB = float(m.group(2).replace("_", "."))
+        m_priceS = float(m.group(3)) 
+        m_qty = float(m.group(4))
+
+    # Line contains no info, using fixed value!
+    elif match_non is not None:
+        m = match_non
+        m_symbol = m.group(1)
+        m_priceS = float(m.group(2)) 
+        m_qty = float(m.group(3))
+
+        # preset value with fixed mulitplier
+        m_priceB = m_priceS * mult
+
+        # overwrite price if found (old clientorderid)
+        match_cid = re.match( pattern_cid, line)
+        if ( match_cid is not None):
+            extractMetadata( match_cid.group(1))
+    else:
+        print( "Failure")
+
+
+
+########################################
 # Sub: Create gains string for on file
 #   Uses a fixed multiplier (aka --mult)
 ########################################
-def getGainsFromFile( fname, detailed=True):
-    pattern = 'symbol":"([A-Z]+)".*price":"([0-9.]+)",.*executedQty":"([0-9.]+)".*time":([0-9]+)'
+def getGainsFromFile( fname, detailed=True, earn=[]):
+    global m_symbol
+    global m_priceB
+    global m_priceS
+    global m_qty
 
-    m_symbol = ""
-    m_priceS = 0.0
-    m_qty = 0.0
-    total = 0.0
     lines = []
     outlines = []
     msg = ""
@@ -69,66 +166,18 @@ def getGainsFromFile( fname, detailed=True):
         timestamp = calcTimestamp( parts[0], parts[1], offset)
         offset += 0
 
-        out = ""
-        m = re.search( pattern, l)
+        # Set global variables, depending on line style
+        extractFromLine( l)
 
-        m_symbol = m.group(1)
-        m_priceS = float(m.group(2)) 
-        m_qty = float(m.group(3))
-        m_time = m.group(4)
-
-        tots = m_priceS*m_qty
-        gain = tots * mult
-        total += gain
-
-        out = m_symbol + "," + str(timestamp).split(".")[0] + "," + str(gain)
-        outlines.append(out)
-
-    return outlines
-
-
-
-########################################
-# Sub: Create gains string for on file
-#   Uses the metadata from older logfiles (pre version ???)
-########################################
-def getGainsFromFile_old( fname, detailed=True):
-    pattern = 'symbol":"([A-Z]+)".*price":"([0-9.]+)",.*executedQty":"([0-9.]+)".*time":([0-9]+).*at: ([0-9.]+)'
-    m_symbol = ""
-    m_priceB = 0.0
-    m_priceS = 0.0
-    m_qty = 0.0
-    total = 0.0
-    lines = []
-    outlines = []
-    msg = ""
-
-    with open( fname) as f:
-        lines = f.readlines()
-    
-    offset = 99
-    for l in lines:
-
-        # extract date and time the easy way
-        parts = l.split(" ")
-        timestamp = calcTimestamp( parts[0], parts[1], offset)
-        offset += 0
-
-        out = ""
-        m = re.search( pattern, l)
-
-        m_symbol = m.group(1)
-        m_priceS = float(m.group(2)) 
-        m_qty = float(m.group(3))
-        m_time = m.group(4)
-        m_priceB = float(m.group(5))
+        # Do not count symbols used in "--earn"
+        if m_symbol in earn:
+            continue
 
         tots = m_priceS*m_qty
         totb = m_priceB*m_qty
-        total += (tots-totb)
+        gain = (tots - totb)
 
-
-        out = m_symbol + "," + str(timestamp).split(".")[0] + "," + str(tots-totb)
+        out = m_symbol + "," + str(timestamp).split(".")[0] + "," + str(gain)
         outlines.append(out)
 
     return outlines
@@ -161,7 +210,7 @@ if ( len(sys.argv) > 1):
 
 
 # Create CSV lines of specified file
-lines = getGainsFromFile( DATAFILE, detailed=True)
+lines = getGainsFromFile( DATAFILE, detailed=True, earn=["BNBEUR"])
 
 # Import line into Influx DB
 for line in lines:
