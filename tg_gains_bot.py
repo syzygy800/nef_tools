@@ -286,12 +286,12 @@ def gainsUSDT(bot, update):
 
     for fname in files[-6:]:
         msg = fname + ": "
-        msg += getGainsFromFile( fpath+fname, detailed=False, onlyQuotes="USDT")
+        msg += getGainsFromFile( fpath+fname, detailed=False, onlyQuotes="USDT", earn=g_earn)
         bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
 
     # Latest file (current day)
     msg = '<u>' + current + "</u>\n"
-    msg += getGainsFromFile( fpath+current, detailed=True, onlyQuotes="USDT")
+    msg += getGainsFromFile( fpath+current, detailed=True, onlyQuotes="USDT", earn=g_earn)
     bot.sendMessage(chat_id=update.message.chat_id, text=msg, parse_mode="HTML")
 
     # Print shortcuts
@@ -419,7 +419,7 @@ if ( len(sys.argv) > 1):
     tg_token = str( sys.argv[1])
 
 # Set global earn parameter here (TODO: from argv[])
-g_earn = ["BNBEUR"]
+g_earn = ["BNBEUR", "EURUSDT"]
 
 updater = Updater( tg_token)
 updater.dispatcher.add_handler(CommandHandler('start',      start))
